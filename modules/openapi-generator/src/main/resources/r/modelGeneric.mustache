@@ -500,7 +500,7 @@
         {{/isPrimitiveType}}
         {{/isContainer}}
         {{#isContainer}}
-        stopifnot(is.vector(input_json$`{{name}}`), length(input_json$`{{name}}`) != 0)
+        stopifnot(is.vector(input_json$`{{name}}`))
         {{#isArray}}
         {{#uniqueItems}}
         if (!identical(input_json$`{{name}}`, unique(input_json$`{{name}}`))) {
