@@ -64,7 +64,7 @@
       `{{{dataType}}}_result` <- tryCatch({
           {{#isPrimitiveType}}
           instance <- jsonlite::fromJSON(input, simplifyVector = FALSE)
-          if (typeof(instance) != "{{{dataType}}}") {
+          if (typeof(instance) != "{{{dataType}}}"{{#isNullable}} && !is.null(instance){{/isNullable}}) {
             stop(sprintf("Data type doesn't match. Expected: %s. Actual: %s.", "{{{dataType}}}", typeof(instance)))
           }
           self$actual_instance <- instance
