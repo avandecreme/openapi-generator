@@ -25,14 +25,15 @@
     #' @param instance an instance of the object defined in the anyOf schemas: {{#anyOf}}"{{{.}}}"{{^-last}}, {{/-last}}{{/anyOf}}
     #' @export
     initialize = function(instance = NULL) {
+      type <- class(instance)[[1]]
       if (is.null(instance)) {
         # do nothing
-      } {{#anyOf}}else if (get(class(instance)[[1]], pos = -1)$classname ==  "{{{.}}}") {
+      } else if (type %in% self$any_of) {
         self$actual_instance <- instance
-        self$actual_type <- "{{{.}}}"
-      } {{/anyOf}}else {
+        self$actual_type <- type
+      } else {
         stop(paste("Failed to initialize {{{classname}}} with anyOf schemas {{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}. Provided class name: ",
-                   get(class(instance)[[1]], pos = -1)$classname))
+                   type))
       }
     },
     #' Deserialize JSON string into an instance of {{{classname}}}.
@@ -66,13 +67,15 @@
           if (typeof(instance) != "{{{dataType}}}") {
             stop(sprintf("Data type doesn't match. Expected: %s. Actual: %s.", "{{{dataType}}}", typeof(instance)))
           }
+          self$actual_instance <- instance
+          self$actual_type <- "{{{dataType}}}"
           {{/isPrimitiveType}}
           {{^isPrimitiveType}}
           `{{{dataType}}}`$public_methods$validateJSON(input)
           `{{{dataType}}}_instance` <- `{{{dataType}}}`$new()
-          {{/isPrimitiveType}}
           self$actual_instance <- `{{{dataType}}}_instance`$fromJSON(input)
           self$actual_type <- "{{{dataType}}}"
+          {{/isPrimitiveType}}
           return(self)
         },
         error = function(err) err
@@ -97,7 +100,12 @@
     #' @export
     toJSONString = function() {
       if (!is.null(self$actual_instance)) {
-        as.character(jsonlite::minify((self$actual_instance$toJSONString())))
+        primitive_types <- c("character", "numeric", "integer", "logical", "complex")
+        if (self$actual_type %in% primitive_types) {
+          as.character(jsonlite::minify(jsonlite::toJSON(self$actual_instance)))
+        } else {
+          as.character(jsonlite::minify(self$actual_instance$toJSONString()))
+        }
       } else {
         NULL
       }
@@ -111,7 +119,12 @@
     #' @export
     toJSON = function() {
       if (!is.null(self$actual_instance)) {
-        self$actual_instance$toJSON()
+        primitive_types <- c("character", "numeric", "integer", "logical", "complex")
+        if (self$actual_type %in% primitive_types) {
+          toJSON(self$actual_instance)
+        } else {
+          self$actual_instance$toJSON()
+        }
       } else {
         NULL
       }
@@ -144,8 +157,16 @@
     #' @return The string representation of the instance.
     #' @export
     toString = function() {
+      primitive_types <- c("character", "numeric", "integer", "logical", "complex")
+      if (is.null(self$actual_instance)) {
+        actual_instance_str <- NULL
+      } else if (self$actual_type %in% primitive_types) {
+        actual_instance_str <- jsonlite::prettify(jsonlite::toJSON(self$actual_instance))
+      } else {
+        actual_instance_str <- self$actual_instance$toJSONString()
+      }
       jsoncontent <- c(
-        sprintf('"actual_instance": %s', if (is.null(self$actual_instance)) NULL else self$actual_instance$toJSONString()),
+        sprintf('"actual_instance": %s', actual_instance_str),
         sprintf('"actual_type": "%s"', self$actual_type),
         sprintf('"any_of": "%s"', paste(unlist(self$any_of), collapse = ", "))
       )
